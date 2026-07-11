@@ -39,74 +39,80 @@ All numbers are measured on Qwen2.5-14B-Instruct. Accuracy is full MMLU (14,042 
 
 Note on the Pareto frontiers: FP16 is off the memory frontier entirely, since INT8 matches its accuracy at 45% less memory and dominates it.
 
+## Requirements
+
+- A single CUDA GPU that fits Qwen2.5-14B in FP16 (about 30 GB of VRAM; an L40S, A6000, A100, or H200 all work).
+- CUDA 12.1, Python 3.11.
+- The pinned stack in `requirements.txt`. Versions are pinned deliberately: transformers is held at 4.46.3 because newer versions break llm-compressor's GPTQ calibration on Qwen2, and vLLM 0.6.6.post1 pairs with compressed-tensors 0.8.1 and llmcompressor 0.3.1.
+
 ## Getting Started
 
-Built for Northeastern's Explorer cluster (Slurm), and runnable anywhere with a single GPU that fits a 14B model in FP16 (about 30 GB; an L40S, A6000, A100, or H200 all work) by calling the stage scripts directly.
+The pipeline runs as five plain Python scripts. Each stage is idempotent: every finished work unit writes a `_DONE.json` marker, so re-running a stage skips completed work and only computes what is missing.
 
-### 1. Build the environment (once, with internet access)
-
-Do this on a compute node, not the login node: environment builds and package installs are heavy and get killed on login nodes.
+### 1. Install
 
 ```bash
-srun -p short --cpus-per-task=8 --mem=32G --time=02:00:00 --pty /bin/bash
-cd <project-dir>
-bash environment_setup.sh
+python -m venv .venv && source .venv/bin/activate
+pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121
+pip install -r requirements.txt
 ```
 
-`environment_setup.sh` creates a conda env under `envs/evi` and installs the pinned stack from `requirements.txt`. The versions are pinned deliberately; in particular transformers is held at 4.46.3, because newer versions break llm-compressor's GPTQ calibration on Qwen2. torch 2.5.1 is installed from the CUDA 12.1 wheel index inside the script.
-
-Always call the environment's Python by absolute path (`envs/evi/bin/python`); do not rely on `conda activate`, which is unreliable on compute nodes.
-
-### 2. Download the model and datasets (once, with internet access)
+### 2. Download the model and datasets (needs internet)
 
 ```bash
-export PROJECT_BASE=$PWD HF_HOME=$PWD/hf_cache HF_HUB_OFFLINE=0
-envs/evi/bin/python scripts/run_download.py
+python scripts/run_download.py
 ```
 
-This caches Qwen2.5-14B-Instruct, MMLU, HumanEval, and the wikitext calibration set. Later GPU jobs set `HF_HUB_OFFLINE=1` and read only from this cache, so compute nodes never need network access.
+Caches Qwen2.5-14B-Instruct, MMLU, HumanEval, and the wikitext calibration set into `hf_cache/` and `data/`. After this, the compute stages read only from the local cache.
 
 ### 3. Quantize
 
-Produces the INT8, INT4-GPTQ, and W8A8 checkpoints (FP16 needs none). Each config is written atomically and marked with a `_DONE.json` on success, so the stage is idempotent: rerunning skips finished configs and only recomputes the rest. A single 14B GPTQ config can take 30-90 minutes and has no mid-config checkpoint, so give it a partition with enough wall clock (an 8-hour H200 job finishes all configs in one shot):
+Produces the INT8, INT4-GPTQ, and W8A8 checkpoints (FP16 needs none). A single 14B GPTQ config takes roughly 30-90 minutes on one GPU.
 
 ```bash
-sbatch slurm/run_stage_h200.sbatch scripts/run_quantize.py
-```
-
-Check progress; three DONE markers (INT8, INT4-GPTQ, W8A8) means the stage is complete:
-
-```bash
+python scripts/run_quantize.py
+# progress (target: 3 markers for int8_w, int4_gptq, w8a8)
 find quantized -name _DONE.json | wc -l
 ```
 
 ### 4. Benchmark throughput, latency, and memory
 
-All configs must be benchmarked on the same GPU so speeds are comparable.
+Run all configs on the same GPU so the speed numbers are comparable.
 
 ```bash
-sbatch slurm/run_stage_gpushort.sbatch scripts/run_benchmark.py
+python scripts/run_benchmark.py
 find results/benchmark -name _DONE.json | wc -l   # target: 4
 ```
 
 ### 5. Evaluate MMLU and HumanEval
 
-Evaluation is one work unit per (config, task) and is sharded internally (MMLU by subject, HumanEval by problem), so it resumes cleanly after a timeout. Accuracy does not depend on GPU type, so any fitting card works. `run_evaluate.py` does one pending unit per invocation, so drive the eight units (4 configs x 2 tasks) with a Slurm job array that runs one task at a time and auto-advances:
+`run_evaluate.py` completes one pending (config, task) unit per invocation and is sharded internally (MMLU by subject, HumanEval by problem), so it resumes cleanly if interrupted. There are eight units (4 configs x 2 tasks); loop until all are done:
 
 ```bash
-sbatch --array=1-8%1 slurm/run_stage.sbatch scripts/run_evaluate.py
-find results/mmlu results/humaneval -name _DONE.json | wc -l   # target: 8
+until [ "$(find results/mmlu results/humaneval -name _DONE.json | wc -l)" -eq 8 ]; do
+  python scripts/run_evaluate.py
+done
 ```
 
-Extra array tasks after the eight units are done become instant no-ops.
+Accuracy does not depend on GPU type, so this stage can use any card that fits the model.
 
 ### 6. Build the Pareto frontier and figures
 
 ```bash
-envs/evi/bin/python scripts/run_analyze.py
+python scripts/run_analyze.py
 ```
 
 Writes `results/summary.json` (both Pareto frontiers plus the degradation table) and `docs/pareto_memory.png` / `docs/pareto_latency.png`.
+
+## Running on a Slurm cluster (optional)
+
+The `slurm/` directory has thin submission wrappers around the same scripts. Set `PROJECT_BASE` to the project directory (the wrappers default it to `$SLURM_SUBMIT_DIR`) and call the environment's Python by absolute path rather than relying on `conda activate`, which is unreliable on compute nodes. Build the environment and download data on a node with internet, then set `HF_HUB_OFFLINE=1` for the compute stages. Quantization needs a wall clock long enough for a full config (there is no mid-config checkpoint); evaluation shards finely and resumes well, so a job array drives it to completion:
+
+```bash
+sbatch slurm/run_stage_h200.sbatch scripts/run_quantize.py
+sbatch slurm/run_stage_gpushort.sbatch scripts/run_benchmark.py
+sbatch --array=1-8%1 slurm/run_stage.sbatch scripts/run_evaluate.py
+```
 
 ## How production would differ
 

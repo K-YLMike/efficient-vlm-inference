@@ -1,6 +1,8 @@
 <div align="center">
 
-# efficient-vlm-inference
+# LLM Quantization Pareto
+
+`efficient-vlm-inference`
 
 **Post-training compression of a 14B instruction model, measured as an accuracy, latency, and memory Pareto frontier on the vLLM serving stack.**
 

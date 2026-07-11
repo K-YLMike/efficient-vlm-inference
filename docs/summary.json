@@ -1,0 +1,77 @@
+{
+  "baseline": "fp16",
+  "degradation": [
+    {
+      "hard_rel_drop": 0.0,
+      "hard_score": 0.6951219512195121,
+      "headline_rel_drop": 0.0,
+      "headline_score": 0.7558752314485117,
+      "name": "fp16"
+    },
+    {
+      "hard_rel_drop": -0.008771929824561412,
+      "hard_score": 0.7012195121951219,
+      "headline_rel_drop": -0.00018843037497631856,
+      "headline_score": 0.7560176613018088,
+      "name": "int8_w"
+    },
+    {
+      "hard_rel_drop": 0.017543859649122664,
+      "hard_score": 0.6829268292682927,
+      "headline_rel_drop": 0.027793480309025863,
+      "headline_score": 0.7348668280871671,
+      "name": "int4_gptq"
+    },
+    {
+      "hard_rel_drop": 0.0,
+      "hard_score": 0.6951219512195121,
+      "headline_rel_drop": 0.01036367062370457,
+      "headline_score": 0.7480415895171628,
+      "name": "w8a8"
+    }
+  ],
+  "pareto_frontier_latency": [
+    "fp16",
+    "int8_w",
+    "w8a8"
+  ],
+  "pareto_frontier_memory": [
+    "int8_w",
+    "int4_gptq",
+    "w8a8"
+  ],
+  "points": [
+    {
+      "humaneval_pass1": 0.6951219512195121,
+      "memory_gb": 29.540134,
+      "mmlu_acc": 0.7558752314485117,
+      "name": "fp16",
+      "tokens_per_s": 2908.209618251139,
+      "ttft_ms": 1671.0282564163208
+    },
+    {
+      "humaneval_pass1": 0.7012195121951219,
+      "memory_gb": 16.332482224,
+      "mmlu_acc": 0.7560176613018088,
+      "name": "int8_w",
+      "tokens_per_s": 2754.526272624049,
+      "ttft_ms": 1717.0987129211426
+    },
+    {
+      "humaneval_pass1": 0.6829268292682927,
+      "memory_gb": 9.928566552,
+      "mmlu_acc": 0.7348668280871671,
+      "name": "int4_gptq",
+      "tokens_per_s": 2772.424422899126,
+      "ttft_ms": 1692.1063661575317
+    },
+    {
+      "humaneval_pass1": 0.6951219512195121,
+      "memory_gb": 16.332437712,
+      "mmlu_acc": 0.7480415895171628,
+      "name": "w8a8",
+      "tokens_per_s": 3762.7894189796134,
+      "ttft_ms": 1059.9358081817627
+    }
+  ]
+}

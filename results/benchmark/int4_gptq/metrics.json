@@ -1,0 +1,11 @@
+{
+  "checkpoint_gb": 9.928566552,
+  "decode_tokens_per_s": 2772.424422899126,
+  "input_len": 512,
+  "name": "int4_gptq",
+  "num_prompts": 128,
+  "output_len": 128,
+  "total_output_tokens": 16384,
+  "ttft_ms_median": 1692.1063661575317,
+  "wall_s": 5.909629083005711
+}

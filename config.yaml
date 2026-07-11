@@ -1,0 +1,79 @@
+# Central configuration. All choices and hyperparameters live here; no
+# path is hard-coded. Every directory below is resolved under PROJECT_BASE
+# at runtime (see src/utils/config.py).
+
+project:
+  name: efficient-vlm-inference
+  base_model: Qwen/Qwen2.5-14B-Instruct
+  seed: 0
+
+paths:
+  data_dir: data
+  quantized_dir: quantized
+  results_dir: results
+  calib_dir: calibration
+  docs_dir: docs
+
+# Calibration corpus for GPTQ / AWQ / SmoothQuant. wikitext-2 has no overlap
+# with the MMLU test split or HumanEval, so it does not contaminate accuracy.
+calibration:
+  source: wikitext-2-raw-v1
+  num_samples: 512
+  min_chars: 256
+  max_seq_len: 2048
+
+# Quantization configs. fp16 is the baseline (no checkpoint produced).
+# vllm_quantization is passed to vLLM when loading; "auto" lets vLLM detect
+# the format from the checkpoint config.
+quant_configs:
+  - name: fp16
+    method: none
+    dtype: float16
+    vllm_quantization: auto
+
+  - name: int8_w
+    method: llmcompressor
+    scheme: W8A16
+    smoothquant: false
+    ignore: ["lm_head"]
+    vllm_quantization: compressed-tensors
+
+  - name: int4_gptq
+    method: llmcompressor
+    scheme: W4A16
+    smoothquant: false
+    ignore: ["lm_head"]
+    vllm_quantization: compressed-tensors
+
+  - name: w8a8
+    method: llmcompressor
+    scheme: W8A8
+    smoothquant: true
+    ignore: ["lm_head"]
+    vllm_quantization: compressed-tensors
+
+benchmark:
+  num_prompts: 128
+  input_len: 512
+  output_len: 128
+  gpu_memory_utilization: 0.85
+  max_model_len: 4096
+  enforce_eager: false
+
+evaluate:
+  mmlu:
+    enabled: true
+    split: test
+    gpu_memory_utilization: 0.85
+    max_model_len: 4096
+  humaneval:
+    enabled: true
+    max_new_tokens: 512
+    exec_timeout_s: 10.0
+    gpu_memory_utilization: 0.85
+    max_model_len: 4096
+
+analysis:
+  baseline: fp16
+  headline_task: mmlu
+  hard_task: humaneval

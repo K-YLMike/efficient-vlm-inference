@@ -1,0 +1,11 @@
+{
+  "checkpoint_gb": 16.332437712,
+  "decode_tokens_per_s": 3762.7894189796134,
+  "input_len": 512,
+  "name": "w8a8",
+  "num_prompts": 128,
+  "output_len": 128,
+  "total_output_tokens": 16384,
+  "ttft_ms_median": 1059.9358081817627,
+  "wall_s": 4.3542165600229055
+}

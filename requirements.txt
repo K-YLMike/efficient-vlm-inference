@@ -1,0 +1,33 @@
+
+# Verified working stack on NEU Explorer (CUDA 12.1, Python 3.11).
+
+# torch is installed separately with the cu121 wheel index (see
+
+# environment_setup.sh) and is not pinned here.
+
+# transformers is pinned to 4.46.3: newer versions break llm-compressor
+
+# GPTQ calibration on Qwen2 (rotary embedding tensor-size mismatch).
+
+vllm==0.6.6.post1
+
+compressed-tensors==0.8.1
+
+llmcompressor==0.3.1
+
+transformers==4.46.3
+
+tokenizers==0.20.3
+
+datasets==5.0.0
+
+accelerate==1.14.0
+
+huggingface_hub
+
+matplotlib==3.11.0
+
+pyyaml==6.0.3
+
+numpy==1.26.4
+

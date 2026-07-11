@@ -1,0 +1,11 @@
+{
+  "checkpoint_gb": 29.540134,
+  "decode_tokens_per_s": 2908.209618251139,
+  "input_len": 512,
+  "name": "fp16",
+  "num_prompts": 128,
+  "output_len": 128,
+  "total_output_tokens": 16384,
+  "ttft_ms_median": 1671.0282564163208,
+  "wall_s": 5.63370669609867
+}
